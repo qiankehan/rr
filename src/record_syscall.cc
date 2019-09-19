@@ -20,6 +20,7 @@
 #include <linux/input.h>
 #include <linux/ipc.h>
 #include <linux/joystick.h>
+#include <linux/kvm.h>
 #include <linux/msdos_fs.h>
 #include <linux/msg.h>
 #include <linux/net.h>
@@ -1749,6 +1750,17 @@ static Switchable prepare_ioctl(RecordTask* t,
                                       args.wLength);
       return PREVENT_SWITCH;
     }
+
+    case IOCTL_MASK_SIZE(KVM_GET_MSR_INDEX_LIST):
+    case IOCTL_MASK_SIZE(KVM_GET_MSR_FEATURE_INDEX_LIST):
+        syscall_state.reg_parameter<typename Arch::kvm_msr_list>(3);
+        return PREVENT_SWITCH;
+    case IOCTL_MASK_SIZE(KVM_GET_DIRTY_LOG):
+        syscall_state.reg_parameter<typename Arch::kvm_dirty_log>(3);
+        return PREVENT_SWITCH;
+    case IOCTL_MASK_SIZE(KVM_GET_REGS):
+        syscall_state.reg_parameter<typename Arch::kvm_regs>(3);
+        return PREVENT_SWITCH;
   }
 
   /* These ioctls are mostly regular but require additional recording. */

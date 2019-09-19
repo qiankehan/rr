@@ -18,6 +18,7 @@
 #include <linux/ipc.h>
 #include <linux/mqueue.h>
 #include <linux/msg.h>
+#include <linux/kvm.h>
 #include <linux/net.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/sem.h>

@@ -3,6 +3,7 @@
 #ifndef RR_KERNEL_ABI_H
 #define RR_KERNEL_ABI_H
 
+#include <linux/kvm.h>
 #include <signal.h>
 
 #include <vector>
@@ -915,6 +916,334 @@ struct BaseArch : public wordsize,
     __kernel_pid_t pid;
   };
   RR_VERIFY_TYPE(f_owner_ex);
+
+  struct kvm_msr_list {
+    __u32 nmsrs;
+    __u32 indices[0];
+  };
+  RR_VERIFY_TYPE(kvm_msr_list);
+
+  struct kvm_dirty_log {
+	__u32 slot;
+	__u32 padding;
+	union {
+      void __user *dirty_bitmap;
+	  __u64 padding;
+	};
+  };
+  RR_VERIFY_TYPE(kvm_dirty_log);
+
+  struct kvm_regs {
+    /* out (KVM_GET_REGS) / in (KVM_SET_REGS) */
+    __u64 rax, rbx, rcx, rdx;
+    __u64 rsi, rdi, rsp, rbp;
+    __u64 r8,  r9,  r10, r11;
+    __u64 r12, r13, r14, r15;
+    __u64 rip, rflags;
+  };
+  RR_VERIFY_TYPE(kvm_regs);
+
+  struct kvm_segment {
+    __u64 base;
+    __u32 limit;
+    __u16 selector;
+    __u8  type;
+    __u8  present, dpl, db, s, l, g, avl;
+    __u8  unusable;
+    __u8  padding;
+  };
+  RR_VERIFY_TYPE(kvm_segment);
+
+  struct kvm_dtable {
+    __u64 base;
+    __u16 limit;
+    __u16 padding[3];
+  };
+  RR_VERIFY_TYPE(kvm_dtable);
+
+  struct kvm_sregs {
+    struct kvm_segment cs, ds, es, fs, gs, ss;
+    struct kvm_segment tr, ldt;
+    struct kvm_dtable gdt, idt;
+    __u64 cr0, cr2, cr3, cr4, cr8;
+    __u64 efer;
+    __u64 apic_base;
+    __u64 interrupt_bitmap[(KVM_NR_INTERRUPTS + 63) / 64];
+  };
+  RR_VERIFY_TYPE(kvm_sregs);
+
+  struct kvm_translation {
+    /* in */
+    __u64 linear_address;
+    /* out */
+    __u64 physical_address;
+    __u8  valid;
+    __u8  writeable;
+    __u8  usermode;
+    __u8  pad[5];
+  };
+  RR_VERIFY_TYPE(kvm_translation);
+
+  struct kvm_msr_entry {
+    __u32 index;
+    __u32 reserved;
+    __u64 data;
+  };
+  RR_VERIFY_TYPE(kvm_msr_entry);
+
+  struct kvm_msrs {
+    __u32 nmsrs; /* number of msrs in entries */
+    __u32 pad;
+    struct kvm_msr_entry entries[0];
+  };
+  RR_VERIFY_TYPE(kvm_msrs);
+
+  struct kvm_fpu {
+    __u8  fpr[8][16];
+    __u16 fcw;
+    __u16 fsw;
+    __u8  ftwx;  /* in fxsave format */
+    __u8  pad1;
+    __u16 last_opcode;
+    __u64 last_ip;
+    __u64 last_dp;
+    __u8  xmm[16][16];
+    __u32 mxcsr;
+    __u32 pad2;
+  };
+  RR_VERIFY_TYPE(kvm_fpu);
+
+  struct kvm_pic_state {
+    __u8 last_irr;  /* edge detection */
+    __u8 irr;    /* interrupt request register */
+    __u8 imr;    /* interrupt mask register */
+    __u8 isr;    /* interrupt service register */
+    __u8 priority_add;  /* highest irq priority */
+    __u8 irq_base;
+    __u8 read_reg_select;
+    __u8 poll;
+    __u8 special_mask;
+    __u8 init_state;
+    __u8 auto_eoi;
+    __u8 rotate_on_auto_eoi;
+    __u8 special_fully_nested_mode;
+    __u8 init4;    /* true if 4 byte init */
+    __u8 elcr;    /* PIIX edge/trigger selection */
+    __u8 elcr_mask;
+  };
+  RR_VERIFY_TYPE(kvm_pic_state);
+
+  struct kvm_ioapic_state {
+    __u64 base_address;
+    __u32 ioregsel;
+    __u32 id;
+    __u32 irr;
+    __u32 pad;
+    union {
+      __u64 bits;
+      struct {
+        __u8 vector;
+        __u8 delivery_mode:3;
+        __u8 dest_mode:1;
+        __u8 delivery_status:1;
+        __u8 polarity:1;
+        __u8 remote_irr:1;
+        __u8 trig_mode:1;
+        __u8 mask:1;
+        __u8 reserve:7;
+        __u8 reserved[4];
+        __u8 dest_id;
+      } fields;
+    } redirtbl[KVM_IOAPIC_NUM_PINS];
+  };
+  RR_VERIFY_TYPE(kvm_ioapic_state);
+
+  struct kvm_irqchip {
+    __u32 chip_id;  /* 0 = PIC1, 1 = PIC2, 2 = IOAPIC */
+    __u32 pad;
+    union {
+      char dummy[512];  /* reserving space */
+      struct kvm_pic_state pic;
+      struct kvm_ioapic_state ioapic;
+    } chip;
+  };
+  RR_VERIFY_TYPE(kvm_irqchip);
+
+  struct kvm_clock_data {
+    __u64 clock;  /* kvmclock current value */
+    __u32 flags;
+    __u32 pad[9];
+  };
+  RR_VERIFY_TYPE(kvm_clock_data);
+
+  struct kvm_vcpu_events {
+    struct {
+      __u8 injected;
+      __u8 nr;
+      __u8 has_error_code;
+      __u8 pending;
+      __u32 error_code;
+    } exception;
+    struct {
+      __u8 injected;
+      __u8 nr;
+      __u8 soft;
+      __u8 shadow;
+    } interrupt;
+    struct {
+      __u8 injected;
+      __u8 pending;
+      __u8 masked;
+      __u8 pad;
+    } nmi;
+    __u32 sipi_vector;
+    __u32 flags;
+    struct {
+      __u8 smm;
+      __u8 pending;
+      __u8 smm_inside_nmi;
+      __u8 latched_init;
+    } smi;
+    __u8 reserved[27];
+    __u8 exception_has_payload;
+    __u64 exception_payload;
+  };
+  RR_VERIFY_TYPE(kvm_vcpu_events);
+
+  struct kvm_debugregs {
+    __u64 db[4];
+    __u64 dr6;
+    __u64 dr7;
+    __u64 flags;
+    __u64 reserved[9];
+  };
+  RR_VERIFY_TYPE(kvm_debugregs);
+
+  struct kvm_mp_state {
+    __u32 mp_state;
+  };
+  RR_VERIFY_TYPE(kvm_mp_state);
+
+  struct kvm_xsave {
+    __u32 region[1024];
+  };
+  RR_VERIFY_TYPE(kvm_xsave);
+
+  struct kvm_xcr {
+    __u32 xcr;
+    __u32 reserved;
+    __u64 value;
+  };
+  RR_VERIFY_TYPE(kvm_xcr);
+
+  struct kvm_xcrs {
+    __u32 nr_xcrs;
+    __u32 flags;
+    struct kvm_xcr xcrs[KVM_MAX_XCRS];
+    __u64 padding[16];
+  };
+  RR_VERIFY_TYPE(kvm_xcrs);
+
+  struct kvm_cpuid_entry2 {
+    __u32 function;
+    __u32 index;
+    __u32 flags;
+    __u32 eax;
+    __u32 ebx;
+    __u32 ecx;
+    __u32 edx;
+    __u32 padding[3];
+  };
+  RR_VERIFY_TYPE(kvm_cpuid_entry2);
+
+  struct kvm_cpuid2 {
+    __u32 nent;
+    __u32 padding;
+    struct kvm_cpuid_entry2 entries[0];
+  };
+  RR_VERIFY_TYPE(kvm_cpuid2);
+
+  struct kvm_lapic_state {
+    char regs[KVM_APIC_REG_SIZE];
+  };
+  RR_VERIFY_TYPE(kvm_lapic_state);
+
+  struct kvm_one_reg {
+    __u64 id;
+    __u64 addr;
+  };
+  RR_VERIFY_TYPE(kvm_one_reg);
+
+  struct kvm_pit_channel_state {
+    __u32 count; /* can be 65536 */
+    __u16 latched_count;
+    __u8 count_latched;
+    __u8 status_latched;
+    __u8 status;
+    __u8 read_state;
+    __u8 write_state;
+    __u8 write_latch;
+    __u8 rw_mode;
+    __u8 mode;
+    __u8 bcd;
+    __u8 gate;
+    __s64 count_load_time;
+  };
+  RR_VERIFY_TYPE(kvm_pit_channel_state);
+
+  struct kvm_pit_state2 {
+    struct kvm_pit_channel_state channels[3];
+    __u32 flags;
+    __u32 reserved[9];
+  };
+  RR_VERIFY_TYPE(kvm_pit_state2);
+
+  struct kvm_create_device {
+    __u32  type;  /* in: KVM_DEV_TYPE_xxx */
+    __u32  fd;  /* out: device handle */
+    __u32  flags;  /* in: KVM_CREATE_DEVICE_xxx */
+  };
+  RR_VERIFY_TYPE(kvm_create_device);
+
+  struct kvm_device_attr {
+    __u32  flags;    /* no flags currently defined */
+    __u32  group;    /* device-defined */
+    __u64  attr;    /* group-defined */
+    __u64  addr;    /* userspace address of attr data */
+  };
+  RR_VERIFY_TYPE(kvm_device_attr);
+
+  struct kvm_vmx_nested_state_hdr {
+    __u64 vmxon_pa;
+    __u64 vmcs12_pa;
+    struct {
+      __u16 flags;
+    } smm;
+  };
+  RR_VERIFY_TYPE(kvm_vmx_nested_state_hdr);
+
+  struct kvm_vmx_nested_state_data {
+    __u8 vmcs12[KVM_STATE_NESTED_VMX_VMCS_SIZE];
+    __u8 shadow_vmcs12[KVM_STATE_NESTED_VMX_VMCS_SIZE];
+  };
+  RR_VERIFY_TYPE(kvm_vmx_nested_state_data);
+
+  struct kvm_nested_state {
+    __u16 flags;
+    __u16 format;
+    __u32 size;
+    union {
+      struct kvm_vmx_nested_state_hdr vmx;
+      struct kvm_svm_nested_state_hdr svm;
+      /* Pad the header to 128 bytes.  */
+      __u8 pad[120];
+    } hdr;
+    union {
+      struct kvm_vmx_nested_state_data vmx[0];
+      struct kvm_svm_nested_state_data svm[0];
+    } data;
+  };
+  
 
   // Define various structures that package up syscall arguments.
   // The types of their members are part of the ABI, and defining
